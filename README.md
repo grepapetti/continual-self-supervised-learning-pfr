@@ -1,4 +1,4 @@
-# 2025-2026: (10c) Revive & Reproduce CSSL Code:
+# 2025-2026: (10b) Revive & Reproduce CSSL Code:
 Continually Learning Self-Supervised Representations with PFR
 
 Optional project of the [Streaming Data Analytics](https://emanueledellavalle.org/teaching/streaming-data-analytics-2025-26/) course provided by [Politecnico di Milano](https://www11.ceda.polimi.it/schedaincarico/schedaincarico/controller/scheda_pubblica/SchedaPublic.do?&evn_default=evento&c_classe=837284&__pj0=0&__pj1=36cd41e96fcd065c47b49d18e46e3110).
