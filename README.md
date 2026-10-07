@@ -1,146 +1,122 @@
-# 2025-2026: (10b) Revive & Reproduce CSSL Code:
-Continually Learning Self-Supervised Representations with PFR
+# Continual Self-Supervised Learning with PFR — a reproduction
 
-Optional project of the [Streaming Data Analytics](https://emanueledellavalle.org/teaching/streaming-data-analytics-2025-26/) course provided by [Politecnico di Milano](https://www11.ceda.polimi.it/schedaincarico/schedaincarico/controller/scheda_pubblica/SchedaPublic.do?&evn_default=evento&c_classe=837284&__pj0=0&__pj1=36cd41e96fcd065c47b49d18e46e3110).
+Reviving a four-year-old research codebase and reproducing **Projected Functional
+Regularization** (Gomez-Villa et al., *CVPR Workshop on Continual Learning in
+Computer Vision*, 2022) — then finding out why the result does not come back.
 
-Student: **Greta Papetti**
+Project for the *Streaming Data Analytics* course, **Politecnico di Milano** —
+Prof. Emanuele Della Valle. Author: **Greta Papetti**.
 
----
-
-# Brief Description
-
-> **Continually Learning Self-Supervised Representations with Projected
-> Functional Regularization** — Alex Gomez-Villa et al. (CVPRW, 2022)  
-> https://github.com/alviur/CVPR_PFR
-
-The paper proposes **Projected Functional Regularization (PFR)**, a
-method that introduces a temporal projection network to map current
-latent embeddings back to the previous feature space, addressing
-catastrophic forgetting in unsupervised sequential settings without
-requiring any replay of past data.
-
-Your objective is threefold: (1) map the theoretical concepts in the
-paper to their actual implementation in the codebase; (2) revive the
-public repository — written approximately 3–4 years ago — and make it
-run in a modern Python environment; (3) reproduce the simplest
-experimental case and compare your results against the paper's reported
-metrics.
+![Python](https://img.shields.io/badge/Python-3.10--3.12-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
+![Lightning](https://img.shields.io/badge/PyTorch%20Lightning-1.5.4-792EE5)
+![CIFAR-100](https://img.shields.io/badge/CIFAR--100-4%20tasks-006699)
+![W&B](https://img.shields.io/badge/Weights%20%26%20Biases-FFBE00?logo=weightsandbiases&logoColor=black)
+![Reproducibility](https://img.shields.io/badge/focus-reproducibility-lightgrey)
 
 ---
 
-# Background
+## The short version
 
-**Self-Supervised Learning (SSL)** learns visual representations without
-human annotations by enforcing invariance to data augmentations (SimCLR,
-BYOL, BarlowTwins, SimSiam). **Continual Learning (CL)** studies how
-models can learn sequentially without catastrophically forgetting previous
-knowledge. Their combination — **Continual Self-Supervised Learning
-(CSSL)** — is the focus of this project.
+The pipeline reproduces. **The result does not** — and that turned out to be the
+interesting part.
 
-PFR addresses the CSSL setting by introducing a temporal projection
-network $m$ that maps current embeddings back to the previous feature
-space. Unlike direct feature distillation — which penalizes any change
-in representations and thus limits plasticity — PFR only constrains
-the projection, leaving the backbone free to learn new features. The
-regularization loss is:
+PFR is supposed to beat naive fine-tuning by preventing catastrophic forgetting.
+In my runs it ties with it. The reason is not a bug: at 100 epochs per task,
+**naive fine-tuning doesn't forget in the first place**, so there is nothing for
+PFR to prevent. Meanwhile the feature-distillation baseline collapses by 13
+points — because its regularization weight was tuned for a budget five times
+longer than mine.
 
-$$\mathcal{L}_c^t + \lambda_{pfr} \mathbb{E}_{x_a, x_b \sim \mathcal{D}^*_i}
-[\mathcal{S}(m(f_{\theta_t}(x_a)), f_{\theta_{t-1}}(x_a))
-+ \mathcal{S}(m(f_{\theta_t}(x_b)), f_{\theta_{t-1}}(x_b))]$$
+Both findings come from the same place: *published hyperparameters are not
+properties of a method, they are properties of a method in a setup.*
 
-where $\mathcal{S}(\cdot, \cdot)$ is the cosine similarity and
-$f_{\theta_{t-1}}$ is the frozen encoder from the previous task.
+## Setup
 
----
+Barlow Twins + ResNet-18 on **CIFAR-100 split into 4 tasks of 25 disjoint
+classes**, class-incremental, 100 epochs per task on an NVIDIA L4. Four
+conditions, differing in one thing only — the distiller wrapped around the
+self-supervised method:
 
-# Project Goals
+| Condition | Run |
+|---|---|
+| Upper bound | **Joint** — all 100 classes at once |
+| No continual strategy | **FT** — Barlow Twins trained sequentially |
+| Baseline | **FD** — feature distillation, λ = 25 |
+| Paper's method | **PFR** — projected functional regularization |
 
-1. **Map Theory to Code:** Document how the paper's key mechanisms — SSL
-objective, temporal projection network, regularization loss — map to
-specific files, classes, and functions in the repository.
+## Results
 
-2. **Revive the Codebase:** Resolve broken dependencies, deprecated APIs,
-and missing configurations. Document every issue and solution in the
-README of your fork.
+Paper protocol (100-class linear probe). A = final accuracy, F = forgetting,
+FWT = forward transfer. The paper reports accuracy only.
 
-3. **Reproduce the Baseline Experiment:** BarlowTwins + CIFAR-100 + 4
-tasks + Class-incremental. Simplify if needed (fewer epochs, reduced
-tasks) and critically compare results against the paper.
+| Condition | Method | A | F | FWT | A (paper) |
+|---|---|---|---|---|---|
+| Full training | Joint | 59.0 | — | — | 60.6 |
+| No CL | FT | 54.0 | 0.91 | 41.9 | 56.8 |
+| CL baseline | FD | **41.1** | 0.19 | 34.0 | 57.2 |
+| CL (paper) | PFR | 54.2 | 1.28 | 41.2 | 60.1 |
 
-4. **Connect to Course Concepts:** Explicitly map the methods and ideas
-in the paper to the concepts covered in the course. For each key
-mechanism, discuss similarities and differences with respect to what was
-presented in the lectures — motivating why the paper's approach
-converges, diverges, or extends the theoretical framework seen in class.
+The paper's ranking is FT < FD < PFR, with PFR nearly touching the upper bound.
+Mine is FD ≪ FT ≈ PFR, with PFR five points short. Note FD's forgetting of
+0.19 — the lowest of all, and worthless: it forgets nothing because it learned
+nothing. Accuracy and forgetting have to be read together.
 
----
+## Three findings
 
-# Hyperparameters & Dataset
+**Feature distillation didn't over-protect — it never learned.** I ruled out the
+evaluation protocol, then the code (rewrote the Barlow Twins loss from the paper
+formula and matched the repo's to ~1e-4; confirmed the frozen teacher receives no
+gradient and that the distillation term does reach the encoder). The cause: the
+distillation gradient on the encoder is **~250× larger** than the task loss
+gradient. The model spends every step obeying the constraint instead of learning.
+`--lars` hides this — it rescales step *length* per layer but not *direction*, so
+the weights grow in scale while barely rotating. Re-running with λ = 5 and
+nothing else changed lifted mean accuracy from 41% to 50% and plasticity from
++1 to +7 points. Not a bug: a hyperparameter correct at 500 epochs and wrong at
+100.
 
-Both will be **defined together with the project supervisor** at the
-start of the project and added to this README before experiments begin.
+**Most "forgetting" here is class interference, not information loss.** The same
+FT model, on the same representations, scores **BWT +3.9** under task-aware
+evaluation and **−6.2** under seen-pooled (kNN agrees: +2.9 vs −4.5). Task-aware
+asks *are the first task's classes still separable from each other?* — yes, and
+increasingly so. Seen-pooled asks *are they still separable from everything
+else?* — and that degrades as each new group of classes adds candidates to
+confuse them with. A task-aware protocol cannot see this at all.
 
----
+**Reviving the code took three patches, all validated rather than assumed.**
+`torch._six` (removed in PyTorch 2.0), `compute_on_step` (removed from
+torchmetrics), and a `_LRScheduler` isinstance check in Lightning 1.5.4 — plus
+`pip<24.1`, because the pinned `torch>=1.7.*` specifier is not valid for modern
+pip. See [`scripts/apply_compat_patches.py`](scripts/apply_compat_patches.py).
 
-# Evaluation Metrics
+## What's here
 
-Use the standard **linear evaluation** protocol: after training, a frozen
-linear classifier is evaluated on top of the learned representations.
-Report **Average Accuracy (A)**, **Forgetting (F)**, and **Forward
-Transfer (FT)**.
+| | |
+|---|---|
+| [`PFR_riproduzione.ipynb`](PFR_riproduzione.ipynb) | End-to-end pipeline: setup, patches, four trainings, linear evaluations, R matrices, CL metrics, probe/kNN variants, the FD investigation |
+| [`report/PFR_report_Papetti.pdf`](report/PFR_report_Papetti.pdf) | Full write-up — theory-to-code mapping, methodology, results, the investigation (in Italian) |
+| [`COME_RIPRODURRE.md`](COME_RIPRODURRE.md) | Step-by-step reproduction guide, Colab and command line (in Italian) |
+| [`figures/`](figures) | All plots, generated from the logs |
+| `main_pretrain.py`, `main_continual.py`, `main_linear.py` | Entry points inherited from the upstream codebase |
+| `cassle/` | The CaSSLe framework: SSL methods and continual distillers |
 
-Compare your results across three conditions:
-- **Full Training (upper bound):** model trained offline on all data at once.
-- **No CL (fine-tuning baseline):** model trained sequentially with no
-anti-forgetting strategy.
-- **CL technique (PFR):** the method proposed in the paper.
+## Reproducing
 
-The experimental setup should follow the simplest configuration described
-in the paper, without accounting for computational constraints or
-execution time — these will be discussed together with the project
-supervisor.
+Full instructions in [`COME_RIPRODURRE.md`](COME_RIPRODURRE.md). In short: open the
+notebook in Colab on a GPU runtime, run Section 1 (clone, dependencies, W&B login,
+compatibility patches), then the sections in order. Budget roughly 20 minutes per
+task per method on an L4, plus ~4 GB for checkpoints. CIFAR-100 downloads itself.
 
-As an optional extension, you may also evaluate representation quality
-using **KNN classification** or **CKA similarity** (to measure how much
-representations shift across tasks).
+A Weights & Biases account is needed for the sections that read metrics back from
+the run history; `WANDB_MODE=offline` plus `wandb sync` also works.
 
-Present all results in a single table comparing your values against those
-reported in the paper.
+## Credits
 
----
-
-# Deliverables
-
-1. **GitHub Repository** — Fork of the original codebase with an updated
-`requirements.txt` and a README documenting all changes and instructions
-to reproduce your experiment.
-
-2. **Jupyter Notebook** — End-to-end pipeline: data loading, training,
-evaluation, and a results table with plots comparing your metrics against
-the paper. Inline comments must make explicit which part of the code
-corresponds to which mechanism in the paper, and how it relates to the
-concepts covered in the course.
-
-3. **Written Report (~1,500 words)** covering:
-   - *What you changed and why:* dependencies fixed, configurations
-   adjusted, simplifications made — and the motivation behind each
-   choice.
-   - *How results compare:* quantitative delta vs. the paper, with a
-   reasoned hypothesis for each discrepancy.
-   - *Paper-to-code mapping:* for each core contribution (temporal
-   projection network, regularization loss, frozen encoder), identify
-   exactly where and how it is implemented in the code.
-   - *Connections to the course:* for each key concept in the paper,
-   discuss explicitly how it relates to what was covered in the lectures
-   — highlighting similarities, differences, and extensions.
-
----
-
-## Note for Students
-
-* Clone the created repository offline;
-* Add your name and surname into the Readme file;
-* Make any changes to your repository, according to the specific assignment;
-* Add a `requirement.txt` file for code reproducibility and instructions on how to replicate the results;
-* Commit your changes to your local repository;
-* Push your changes to your online repository.
+Original method and code: [alviur/CVPR_PFR](https://github.com/alviur/CVPR_PFR),
+itself a fork of the CaSSLe framework. Upstream README kept as
+[`README_upstream.md`](README_upstream.md). Project brief from the
+[Streaming Data Analytics](https://emanueledellavalle.org/teaching/streaming-data-analytics-2025-26/)
+course; original assignment repository
+[here](https://github.com/Streaming-Data-Analytics/2025-2026_10b_CL-Code-Reproducibility_PFR).
+MIT licensed.
