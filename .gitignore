@@ -1,2 +1,20 @@
+# Checkpoint e dati: troppo grandi per il repo (165-315 MB per checkpoint)
+experiments/
+trained_models/
+*.ckpt
+cifar_data/
+data/
+datasets/
 
+# Log locali
+wandb/
+lightning_logs/
+
+# Python / Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+
+# macOS
 .DS_Store

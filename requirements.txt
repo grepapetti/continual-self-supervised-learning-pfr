@@ -1,0 +1,27 @@
+# Ambiente con cui sono stati prodotti i risultati del notebook:
+# Google Colab, Python 3.12, GPU NVIDIA L4 (settembre 2026).
+#
+# Installazione (l'ordine conta):
+#   pip install "pip<24.1"          # pytorch-lightning 1.5.4 ha un version specifier non standard
+#   pip install -r requirements.txt
+#   python scripts/apply_compat_patches.py
+#
+# torch/torchvision non sono fissati: su Colab sono già installati e reinstallarli costa
+# diversi GB. I risultati sono stati ottenuti con torch 2.11.0+cu128.
+torch>=2.0
+torchvision
+
+# Versioni obbligatorie per il codice del 2022 (API di Lightning/Bolts usate dal repo)
+pytorch-lightning==1.5.4
+lightning-bolts==0.5.0
+torchmetrics==1.9.0
+
+# Logging, valutazione e analisi (notebook)
+wandb
+numpy>=1.24          # testato con 2.0.2
+scikit-learn
+einops
+pandas
+matplotlib
+
+# Non installato di proposito: nvidia-dali (serve solo per ImageNet con i loader DALI)
